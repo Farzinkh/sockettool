@@ -1,16 +1,19 @@
-import socket,select
 import base64
+import os
+import select
+import socket
 import subprocess
-from tqdm import tqdm
-from threading import *
+import time
 import tkinter as tk
-from tkinter import ttk, filedialog
-from ttkthemes import  ThemedTk
-import os,time
 import warnings
-import playsound
-warnings.filterwarnings("ignore")
+from threading import *
+from tkinter import filedialog, ttk
 
+import playsound
+from tqdm import tqdm
+from ttkthemes import ThemedTk
+
+warnings.filterwarnings("ignore")
 def raise_frame(frame,kind="",label=""):
     if kind=="S" or kind=="R":
         Refresher(frame,label)                   

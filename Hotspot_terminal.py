@@ -1,14 +1,17 @@
-from Hotspot import wlan_ip
-from tqdm import tqdm
-import socket,select
-import logging
-import base64
 import argparse
-import os,time
+import base64
+import logging
+import os
+import select
+import socket
+import subprocess
+import time
+
 import playsound
+from tqdm import tqdm
+
 logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
-HOST=wlan_ip()   
-PORT = 65432
+
 parser=argparse.ArgumentParser(description='socket tool for very easy transfering data',epilog='Attention : if it is going to be a client you most to enter server ip and file address too')
 parser.add_argument("operation",metavar='operation',help="Choice to be client or server put 'c' for client and 's' for server" )
 parser.add_argument('-ip',"--serverip",metavar='serverip',help="Enter ip of server")
@@ -23,7 +26,17 @@ if args.operation=="c":
     except Exception:
         raise Exception("Enter ip and file address with -ip and -f")
 
+def wlan_ip():
+    result=subprocess.run('ipconfig',stdout=subprocess.PIPE,text=True).stdout.lower()
+    scan=0
+    for i in result.split('\n'):
+        if 'wireless' in i: scan=1
+        if scan:
+            if 'ipv4' in i: return i.split(':')[1].strip() 
+            if 'IPv4' in i: return i.split(':')[1].strip() 
 
+HOST=wlan_ip()   
+PORT = 65432
 
 def makeserver():
     connected_clients_sockets = []
