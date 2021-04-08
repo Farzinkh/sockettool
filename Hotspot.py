@@ -300,12 +300,25 @@ def makeserver(label,bar,frame):
         return
 
 def wlan_ip():
-    result=subprocess.run('ipconfig',stdout=subprocess.PIPE,text=True).stdout.lower()
-    scan=0
-    for i in result.split('\n'):
-        if 'wireless' in i: scan=1
-        if scan:
-            if 'ipv4' in i: return i.split(':')[1].strip() 
-            if 'IPv4' in i: return i.split(':')[1].strip()        
+    try:
+        result=subprocess.run('ipconfig',stdout=subprocess.PIPE,text=True).stdout.lower()
+        scan=0
+        for i in result.split('\n'):
+            if 'wireless' in i: scan=1
+            if scan:
+                if 'ipv4' in i: return i.split(':')[1].strip() 
+                if 'IPv4' in i: return i.split(':')[1].strip() 
+    except:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            # doesn't even have to be reachable
+            s.connect(('10.255.255.255', 1))
+            IP = s.getsockname()[0]
+        except Exception:
+            IP = '127.0.0.1'
+        finally:
+            s.close()
+        return IP    
+              
 if __name__ == '__main__':
     main()
