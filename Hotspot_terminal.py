@@ -7,7 +7,6 @@ import socket
 import subprocess
 import time
 
-import playsound
 from tqdm import tqdm
 
 logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
@@ -69,8 +68,6 @@ def makeserver():
                             sock.shutdown(1)
                             logging.info('RECEIVED SUCCESSFULLY')
                             logging.info('recived : '+str(receiveddata)+' real size : '+str(size))
-                            file = "alarm.mp3"
-                            playsound.playsound(file,block=False)
                             return
 
                         elif data:            
@@ -150,8 +147,6 @@ def send():
             if answer == 'GOT IT' :
                 sock.sendall(b"BYE BYE ")
                 logging.info('DATA SUCCESSFULLY SENTED TO SERVER')
-                file = "alarm.mp3"
-                playsound.playsound(file,block=False)
             elif answer=='RETRY':
                 logging.info('RETRYING...')
                 sock.close()
