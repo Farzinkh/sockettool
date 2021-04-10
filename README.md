@@ -18,3 +18,28 @@ and for useing non graphical version run
 also you can make executable versions by pyinstaller 
 
 `pip install auto-py-to-exe` and run `auto-py-to-exe`
+### Docker Usage
+#### you can use this tool to update docker image to new image
+At first you need an python image for example python=3.7.9
+
+`docker pull python:3.7.9` => optional
+
+then follow the instruction :
+
+1>`docker run -it  -p 65432:65432 --name update image bash`
+
+2>`git clone https://github.com/Farzinkh/sockettool`
+
+3>`cd sockettool`
+
+4>`pip install -r requirements.txt`
+
+5>`python Hotspot_terminal.py s`
+ 
+ downloaded file will be accessible in Data folder move it to whereever you want
+
+ 6>`exit`
+
+ 7>`docker commit update new_image_name`
+
+ Enjoy :)
