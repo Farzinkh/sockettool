@@ -1,7 +1,7 @@
 import argparse
 import base64
 import logging
-import os
+import os,platform
 import select
 import socket
 import subprocess
@@ -26,7 +26,7 @@ if args.operation=="c":
         raise Exception("Enter ip and file address with -ip and -f")
 
 def wlan_ip():
-    try:
+    if platform.system()=='Windows':
         result=subprocess.run('ipconfig',stdout=subprocess.PIPE,text=True).stdout.lower()
         scan=0
         for i in result.split('\n'):
@@ -34,7 +34,9 @@ def wlan_ip():
             if scan:
                 if 'ipv4' in i: return i.split(':')[1].strip() 
                 if 'IPv4' in i: return i.split(':')[1].strip() 
-    except:
+    elif subprocess.check_output(['uname','-o']).strip()==b'Android':
+        return "192.168.43.1"            
+    elif platform.system()=='Linux':
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         try:
             # doesn't even have to be reachable
