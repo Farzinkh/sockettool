@@ -6,27 +6,41 @@ import select
 import socket
 import subprocess
 import time
-
+import ctypes
 from tqdm import tqdm
 
-logging.basicConfig(format='%(asctime)s - %(message)s', level=logging.INFO)
+logging.basicConfig(format='%(asctime)s : %(levelname)s -> %(message)s', level=logging.INFO)
 
-parser=argparse.ArgumentParser(description='socket tool for very easy transfering data',epilog='Attention : if it is going to be a client you most to enter server ip and file address too')
+parser=argparse.ArgumentParser(description='socket tool for very easy transfering data',epilog='Attention : if it is going to be a client you most to enter server ip and port too')
 parser.add_argument("operation",metavar='operation',help="Choice to be client or server put 'c' for client and 's' for server" )
 parser.add_argument('-ip',"--serverip",metavar='serverip',help="Enter ip of server")
-parser.add_argument('-f',"--file-address",metavar='file_address',help="Enter the address of file with it's name completely for example : blabla/hello.txt")
+parser.add_argument('-p',"--port",metavar='port',help="Enter port number of server")
 args=parser.parse_args()
 client=False
 if args.operation=="c":
     try:
         client=True
-        inputdata=args.file_address
+        PORT=int(args.port)
         serverip=args.serverip
     except Exception:
-        raise Exception("Enter ip and file address with -ip and -f")
+        raise Exception("Enter ip and port number with -ip and -p")
+
+def is_admin():
+    try:
+        return ctypes.windll.shell32.IsUserAnAdmin()
+    except:
+        return False
 
 def wlan_ip():
+    global admin
+    admin=True
     if platform.system()=='Windows':
+        logging.info("Windows os detected")
+        if is_admin():
+            logging.info("admin checked")
+        else:
+            logging.warning("admin permission might be required !")
+            admin=False
         result=subprocess.run('ipconfig',stdout=subprocess.PIPE,text=True).stdout.lower()
         scan=0
         for i in result.split('\n'):
@@ -34,9 +48,12 @@ def wlan_ip():
             if scan:
                 if 'ipv4' in i: return i.split(':')[1].strip() 
                 if 'IPv4' in i: return i.split(':')[1].strip() 
+
     elif subprocess.check_output(['uname','-o']).strip()==b'Android':
+        logging.info("Android os detected")
         return "192.168.43.1"            
     elif platform.system()=='Linux':
+        logging.info("Linux os detected")
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         try:
             # doesn't even have to be reachable
@@ -49,15 +66,15 @@ def wlan_ip():
         return IP            
 
 HOST=wlan_ip()   
-PORT = 65432
 
 def makeserver():
     connected_clients_sockets = []
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     try:
-        server_socket.bind((HOST, PORT))
+        server_socket.bind((HOST, 0))
         server_socket.listen(10)
+        PORT=server_socket.getsockname()[1]
         connected_clients_sockets.append(server_socket)
         buffer_size = 10000000
         logging.info('listening on : '+str(HOST)+':'+str(PORT))
@@ -79,11 +96,22 @@ def makeserver():
                             logging.info('I/O NAME {} & SIZE {} bytes'.format(name,size))
                             sock.send(b"GOT SIZE")
                         elif txt.startswith('BYE'):
-                            sock.shutdown(1)
                             logging.info('RECEIVED SUCCESSFULLY')
                             logging.info('recived : '+str(receiveddata)+' real size : '+str(size))
-                            return
-
+                            #return 
+                            sock.send(b"done")
+                            buffer_size = 10000000
+                            a=1
+                            numbers=numbers-1
+                            if numbers==0:
+                                sock.shutdown(1)
+                                return
+                            else:
+                                logging.info("Downloading next one")    
+                        elif txt.startswith('NUMBER'):  
+                            tmp = txt.split() 
+                            numbers = int(tmp[1]) 
+                            logging.info("{} file's are going to download ".format(numbers))
                         elif data:            
                             logging.info('downloading...')  
                             try:    
@@ -128,44 +156,63 @@ def makeserver():
                 continue
         server_socket.close()
     except Exception as E:
-        logging.error(E,"ip :",HOST)
-        logging.error("you are offline")  
+        if not admin:
+            raise Exception("Admin permission required !")
+        else:    
+            logging.error(E,"ip :",HOST)
+            logging.error("you are offline")  
         return
-
+def inputdata():
+    l=[]
+    for root, dirs, files in os.walk(r"./SEND", topdown=False):
+        for name in files:
+            l.append(os.path.join(root, name))
+        for name in dirs:
+            l.append(os.path.join(root, name))
+    if len(l)==0:
+        raise("there is nothing available for sending put file's in SEND directory")
+    return(l) 
 def send():
-    global inputdata,message
+    global message
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server_address = (HOST, PORT)
         sock.connect(server_address)
         # open inputdata
-        myfile = open(inputdata, 'rb')
-        name=os.path.basename(myfile.name)
-        buffer = myfile.read()
-        as_text_base64 = base64.b64encode(buffer)
-        size = len(as_text_base64)
-        logging.info('len bytes '+str(len(buffer))+' len bytes '+str(size))
-        # send inputdata size to server
-        sock.send(bytes("SIZE {} {}".format(name,size),'utf-8'))
-        answer = sock.recv(4096)
-        answer=answer.decode('utf-8')
-        logging.debug('server answer = %s' % answer)
-        if answer == 'GOT SIZE':
-            base64.b64decode(as_text_base64)
-            sock.sendall(as_text_base64)
-            logging.info('sending...')
-            # check what server send
+        datas=inputdata()
+        sock.send(bytes("NUMBER {}".format(len(datas)),'utf-8'))
+        for i in datas:
+            myfile = open(i, 'rb')
+            name=os.path.basename(myfile.name).replace(" ","_")
+            buffer = myfile.read()
+            as_text_base64 = base64.b64encode(buffer)
+            size = len(as_text_base64)
+            logging.info('len bytes '+str(len(buffer))+' len bytes '+str(size))
+            # send inputdata size to server
+            sock.send(bytes("SIZE {} {}".format(name,size),'utf-8'))
             answer = sock.recv(4096)
             answer=answer.decode('utf-8')
             logging.debug('server answer = %s' % answer)
-            if answer == 'GOT IT' :
-                sock.sendall(b"BYE BYE ")
-                logging.info('DATA SUCCESSFULLY SENTED TO SERVER')
-            elif answer=='RETRY':
-                logging.info('RETRYING...')
-                sock.close()
-                return False
-        myfile.close()
+            if answer == 'GOT SIZE':
+                base64.b64decode(as_text_base64)
+                sock.sendall(as_text_base64)
+                logging.info('sending...')
+                # check what server send
+                answer = sock.recv(4096)
+                answer=answer.decode('utf-8')
+                logging.debug('server answer = %s' % answer)
+                if answer == 'GOT IT' :
+                    sock.sendall(b"BYE BYE ")
+                    logging.info('DATA SUCCESSFULLY SENTED TO SERVER')
+                    answer = sock.recv(4096).decode('utf-8')
+                    if answer=="done":
+                        logging.info('Sending next file if exist')
+                elif answer=='RETRY':
+                    logging.info('RETRYING...')
+                    sock.close()
+                    return False
+            myfile.close()
+        logging.info('TRANSPORTATION FINISHED')    
         return True
     except Exception as E:
         logging.error(E,exc_info=True)    
@@ -178,7 +225,11 @@ def connect():
             return
         time.sleep(2)
 
-if client:
+if client:    
+    if os.path.isdir(r'./SEND'):
+        pass
+    else:
+        os.mkdir("SEND") 
     connect()
 else:
     makeserver()    
