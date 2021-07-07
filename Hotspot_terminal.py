@@ -166,9 +166,15 @@ def inputdata():
     l=[]
     for root, dirs, files in os.walk(r"./SEND", topdown=False):
         for name in files:
-            l.append(os.path.join(root, name))
+            if name==".gitignore":
+                pass
+            else:
+                l.append(os.path.join(root, name))
         for name in dirs:
-            l.append(os.path.join(root, name))
+            if name==".gitignore":
+                pass
+            else:
+                l.append(os.path.join(root, name))
     if len(l)==0:
         raise("there is nothing available for sending put file's in SEND directory")
     return(l) 
