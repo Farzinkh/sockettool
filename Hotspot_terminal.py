@@ -7,6 +7,7 @@ import socket
 import subprocess
 import time
 import ctypes
+import psutil
 from tqdm import tqdm
 
 logging.basicConfig(format='%(asctime)s : %(levelname)s -> %(message)s', level=logging.INFO)
@@ -66,6 +67,14 @@ def wlan_ip():
         return IP            
 
 HOST=wlan_ip()   
+logging.info("system info number of cpu's {}, frequence {}".format(psutil.cpu_count(),psutil.cpu_freq()))
+def check_mem(THRESHOLD):
+    mem = psutil.virtual_memory() 
+    av=mem.available
+    if  av<= THRESHOLD:
+        logging.warning("Not enough memory available")
+    else:
+        logging.info("Memory checked {} GB available".format(av/2**30))    
 
 def makeserver():
     connected_clients_sockets = []
@@ -93,7 +102,7 @@ def makeserver():
                             tmp = txt.split()
                             name = tmp[1]
                             size = int(tmp[2])
-                            logging.info('I/O NAME {} & SIZE {} bytes'.format(name,size))
+                            logging.info('I/O NAME {} & SIZE {} MB'.format(name,size/2**20))
                             sock.send(b"GOT SIZE")
                         elif txt.startswith('BYE'):
                             logging.info('RECEIVED SUCCESSFULLY')
@@ -140,7 +149,7 @@ def makeserver():
                             myfile.close()
                             sock.send(b"GOT IT")
             except Exception as E:
-                if E.args[0]=="Incorrect padding":
+                if E.args[0]=="Incorrect padding" :
                     sock.send(b"RETRY")
                     try:
                         pbar.close()
@@ -149,8 +158,16 @@ def makeserver():
                     a=a*10
                     buffer_size = int(10000000/a)
                     logging.info("buffersize set to : "+str(buffer_size))
+                elif E.args[0].startswith("Invalid base64-encoded string:"):
+                    logging.info("Invalid file retrying...")
+                    sock.send(b"RETRY")
+                    try:
+                        pbar.close()
+                    except:
+                        pass   
                 else :
                     logging.error(E,exc_info=True)
+                    logging.error(E.args[0])
                 sock.close()
                 connected_clients_sockets.remove(sock)
                 continue
@@ -179,23 +196,25 @@ def inputdata():
         raise("there is nothing available for sending put file's in SEND directory")
     return(l) 
 def send():
-    global message
+    global message,datas
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server_address = (HOST, PORT)
         sock.connect(server_address)
         # open inputdata
-        datas=inputdata()
         sock.send(bytes("NUMBER {}".format(len(datas)),'utf-8'))
-        for i in datas:
-            myfile = open(i, 'rb')
+        count=len(datas)
+        for i in range(count):
+            myfile = open(datas[0], 'rb')
             name=os.path.basename(myfile.name).replace(" ","_")
+            logging.info('Reading {}'.format(name))
             buffer = myfile.read()
             as_text_base64 = base64.b64encode(buffer)
             size = len(as_text_base64)
-            logging.info('len bytes '+str(len(buffer))+' len bytes '+str(size))
+            logging.info('BUFFER size '+str(len(buffer)/2**20)+' MB file size '+str(size/2**20)+' MB')
             # send inputdata size to server
             sock.send(bytes("SIZE {} {}".format(name,size),'utf-8'))
+            check_mem(size)
             answer = sock.recv(4096)
             answer=answer.decode('utf-8')
             logging.debug('server answer = %s' % answer)
@@ -209,10 +228,11 @@ def send():
                 logging.debug('server answer = %s' % answer)
                 if answer == 'GOT IT' :
                     sock.sendall(b"BYE BYE ")
-                    logging.info('DATA SUCCESSFULLY SENTED TO SERVER')
+                    logging.info('DATA SUCCESSFULLY SENT TO SERVER')
+                    datas.remove(datas[0])
                     answer = sock.recv(4096).decode('utf-8')
-                    if answer=="done":
-                        logging.info('Sending next file if exist')
+                    if answer=="done" and len(datas)>0:
+                        logging.info('Sending next file')
                 elif answer=='RETRY':
                     logging.info('RETRYING...')
                     sock.close()
@@ -221,11 +241,16 @@ def send():
         logging.info('TRANSPORTATION FINISHED')    
         return True
     except Exception as E:
-        logging.error(E,exc_info=True)    
-        logging.debug('still searching for ',HOST)
+        if E.args[0]==10054:
+            logging.error("An error acured in server retrying...")
+        else:    
+            logging.error(E.args[0],exc_info=True)    
+            logging.debug('still searching for ',HOST)
         sock.close()
         return False
 def connect():
+    global datas
+    datas=inputdata()
     while 1:
         if send():
             return
@@ -236,6 +261,8 @@ if client:
         pass
     else:
         os.mkdir("SEND") 
+    logging.info("Start connecting to server")    
     connect()
 else:
+    logging.info("Starting server")
     makeserver()    
