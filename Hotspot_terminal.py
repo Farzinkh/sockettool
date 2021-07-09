@@ -5,7 +5,7 @@ import os,platform
 import select
 import socket
 import subprocess
-import time
+import time,sys
 import ctypes
 import psutil
 from math import ceil
@@ -137,7 +137,8 @@ def makeserver():
                             else:
                                 parts = int(tmp[3])
                                 size = int(tmp[4])
-                                logging.info('I/O NAME {} Huge type & {} parts and size {}'.format(name,parts,size))  
+                                logging.info('I/O NAME {} Huge type & {} parts and size {} GB'.format(name,parts,size/2**30)) 
+                                size=size*1.334 #predicting  
                                 logging.debug("server sent GOT SIZE")
                                 sock.send(b"GOT SIZE")
                                 Hugeflag=True  
@@ -175,7 +176,7 @@ def makeserver():
                             if not data:
                                 myfile.close()
                                 break
-                            pbar = tqdm(total=100)
+                            pbar = tqdm(unit='B',unit_scale=True,unit_divisor=1024,file=sys.stdout,total=size)
                             if Hugeflag:
                                 eachbarcounter=100/(parts)
                             else:  
@@ -199,7 +200,7 @@ def makeserver():
                                         data = sock.recv(buffer_size)
                                         barcounter=eachbarcounter/(size/len(data))
                                         sum+=barcounter
-                                        pbar.update(barcounter)
+                                        pbar.update(len(data))
                                         try:
                                             original += base64.b64decode(data)
                                         except:
@@ -325,8 +326,8 @@ def send():
             if  fsize>200*2**20 or not check_mem(fsize): #it is huge
                 logging.info('Huge file detected {} about {} GB'.format(name,fsize/2**30))
                 parts=ceil(fsize/10000000)
-                sock.send(bytes("SIZE {} Huge {} {}".format(name,parts,fsize/2**20),'utf-8'))
-                logging.debug("client sent SIZE {} Huge {} {}".format(name,parts,fsize/2**20))
+                sock.send(bytes("SIZE {} Huge {} {}".format(name,parts,fsize),'utf-8'))
+                logging.debug("client sent SIZE {} Huge {} {}".format(name,parts,fsize))
                 answer = sock.recv(4096)
                 answer=answer.decode('utf-8')
                 logging.debug("client received {}".format(answer))
