@@ -26,6 +26,8 @@ if args.operation=="c" or args.operation=="cd":
         if args.operation=="cd":
             logging.basicConfig(level=logging.DEBUG) #for debugging
         else:
+            import warnings
+            warnings.filterwarnings('ignore')
             logging.basicConfig(format='%(asctime)s : %(levelname)s -> %(message)s', level=logging.INFO)
     except Exception:
         raise Exception("Enter ip and port number with -ip and -p")
@@ -33,9 +35,15 @@ elif  args.operation=="s" or args.operation=="sd":
     if args.operation=="sd":
         logging.basicConfig(level=logging.DEBUG) #for debugging
     else:
+        import warnings
+        warnings.filterwarnings('ignore')
         logging.basicConfig(format='%(asctime)s : %(levelname)s -> %(message)s', level=logging.INFO)  
 else:
     raise("OPERATION NOT DITECTED CHOSE ONE OF THIS (c,s,cd,sd)")
+
+def gen():
+    for i in range(100):
+        yield
 
 def is_admin():
     try:
@@ -128,7 +136,8 @@ def makeserver():
                                 Hugeflag=False
                             else:
                                 parts = int(tmp[3])
-                                logging.info('I/O NAME {} Huge type & {} parts'.format(name,parts))  
+                                size = int(tmp[4])
+                                logging.info('I/O NAME {} Huge type & {} parts and size {}'.format(name,parts,size))  
                                 logging.debug("server sent GOT SIZE")
                                 sock.send(b"GOT SIZE")
                                 Hugeflag=True  
@@ -154,6 +163,8 @@ def makeserver():
                             tmp = txt.split() 
                             numbers = int(tmp[1]) 
                             logging.info("{} files are going to download ".format(numbers))
+                            sock.send(b"ok")
+                            logging.debug("server sent ok")
                         elif data or Hugeflag:            
                             logging.info('downloading...')  
                             try:    
@@ -293,7 +304,19 @@ def send():
         sock.connect(server_address)
         # open inputdata
         sock.send(bytes("NUMBER {}".format(len(datas)),'utf-8'))
+        logging.debug("client sent NUMBER {}".format(len(datas)))
         count=len(datas)
+        answer = sock.recv(4096)
+        answer=answer.decode('utf-8')
+        if answer=="ok":
+            pass 
+        else:
+            logging.debug("client is waited for ok message from server")
+            while True:
+                answer = sock.recv(4096)
+                answer=answer.decode('utf-8')
+                if answer=="ok":
+                    break 
         for i in range(count):
             myfile = open(datas[0], 'rb')
             name=os.path.basename(myfile.name).replace(" ","_")
@@ -302,8 +325,8 @@ def send():
             if  fsize>200*2**20 or not check_mem(fsize): #it is huge
                 logging.info('Huge file detected {} about {} GB'.format(name,fsize/2**30))
                 parts=ceil(fsize/10000000)
-                sock.send(bytes("SIZE {} Huge {}".format(name,parts),'utf-8'))
-                logging.debug("client sent SIZE {} Huge {}".format(name,parts))
+                sock.send(bytes("SIZE {} Huge {} {}".format(name,parts,fsize/2**20),'utf-8'))
+                logging.debug("client sent SIZE {} Huge {} {}".format(name,parts,fsize/2**20))
                 answer = sock.recv(4096)
                 answer=answer.decode('utf-8')
                 logging.debug("client received {}".format(answer))
