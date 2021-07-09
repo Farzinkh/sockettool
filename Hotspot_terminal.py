@@ -12,21 +12,30 @@ from math import ceil
 from tqdm import tqdm
 from pathlib import Path
 
-logging.basicConfig(format='%(asctime)s : %(levelname)s -> %(message)s', level=logging.INFO)
-#logging.basicConfig(level=logging.DEBUG) #for debugging
 parser=argparse.ArgumentParser(description='socket tool for very easy transfering data',epilog='Attention : if it is going to be a client you most to enter server ip and port too')
 parser.add_argument("operation",metavar='operation',help="Choice to be client or server put 'c' for client and 's' for server" )
 parser.add_argument('-ip',"--serverip",metavar='serverip',help="Enter ip of server")
 parser.add_argument('-p',"--port",metavar='port',help="Enter port number of server")
 args=parser.parse_args()
 client=False
-if args.operation=="c":
+if args.operation=="c" or args.operation=="cd":
     try:
         client=True
         PORT=int(args.port)
         serverip=args.serverip
+        if args.operation=="cd":
+            logging.basicConfig(level=logging.DEBUG) #for debugging
+        else:
+            logging.basicConfig(format='%(asctime)s : %(levelname)s -> %(message)s', level=logging.INFO)
     except Exception:
         raise Exception("Enter ip and port number with -ip and -p")
+if  args.operation=="s" or args.operation=="sd":
+    if args.operation=="sd":
+        logging.basicConfig(level=logging.DEBUG) #for debugging
+    else:
+        logging.basicConfig(format='%(asctime)s : %(levelname)s -> %(message)s', level=logging.INFO)  
+else:
+    raise("OPERATION NOT DITECTED CHOSE ONE OF THIS (c,s,cd,sd)")
 
 def is_admin():
     try:
@@ -132,6 +141,7 @@ def makeserver():
                             else:
                                 logging.debug("server sent done")
                                 sock.send(b"done")
+                                Hugeflagfinish=False
                             buffer_size = 10000000
                             a=1
                             numbers=numbers-1
@@ -197,7 +207,7 @@ def makeserver():
                                 myfile.write(original)
                                 myfile.close()    
                                 sock.send(b'done')
-                                Hugeflag=False
+                                Hugeflag,Hugeflagfinish=False,True
                             else:  
                                 pbar.update(barcounter)
                                 logging.debug("server is going to download")
@@ -214,8 +224,8 @@ def makeserver():
                                 logging.debug("server sent GOT IT")
                                 sock.send(b"GOT IT")
             except Exception as E:
-                if E.args[0]=="Incorrect padding" :
-                    logging.debug("server sent RETRY")
+                if E.args[0]=="Incorrect padding" : 
+                    logging.debug("server sent RETRY Error code {}".format(E.args[0]))
                     sock.send(b"RETRY")
                     try:
                         pbar.close()
@@ -374,6 +384,7 @@ def send():
     except Exception as E:
         if E.args[0]==10054:
             logging.error("An error acured in server retrying...")
+        #elif E.args[0]==32: #broken pipe 
         else:    
             logging.error(E.args[0],exc_info=True)    
             logging.debug('still searching for {}'.format(HOST))
