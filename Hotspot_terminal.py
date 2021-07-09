@@ -309,6 +309,13 @@ def send():
                 logging.debug("client received {}".format(answer))
                 if answer=="GOT SIZE":
                     pass
+                else:
+                    logging.debug("client is waiting for GOT SIZE")
+                    while True:
+                        answer = sock.recv(4096)
+                        answer=answer.decode('utf-8')
+                        if answer=="GOT SIZE":
+                            break
                 pbar = tqdm(total=100)
                 barcounter=100/parts
                 s,count=0,0
@@ -387,7 +394,7 @@ def send():
         #elif E.args[0]==32: #broken pipe 
         else:    
             logging.error(E.args[0],exc_info=True)    
-            logging.debug('still searching for {}'.format(HOST))
+            logging.debug('still searching for {}'.format(serverip))
         sock.close()
         return False
 def connect():
