@@ -29,7 +29,7 @@ if args.operation=="c" or args.operation=="cd":
             logging.basicConfig(format='%(asctime)s : %(levelname)s -> %(message)s', level=logging.INFO)
     except Exception:
         raise Exception("Enter ip and port number with -ip and -p")
-if  args.operation=="s" or args.operation=="sd":
+elif  args.operation=="s" or args.operation=="sd":
     if args.operation=="sd":
         logging.basicConfig(level=logging.DEBUG) #for debugging
     else:
