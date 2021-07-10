@@ -32,6 +32,12 @@ if args.operation=="c" or args.operation=="cd":
     except Exception:
         raise Exception("Enter ip and port number with -ip and -p")
 elif  args.operation=="s" or args.operation=="sd":
+    try:
+        predifined=True
+        PORT=int(args.port)
+    except:
+        PORT=0
+        predifined=False
     if args.operation=="sd":
         logging.basicConfig(level=logging.DEBUG) #for debugging
     else:
@@ -97,12 +103,15 @@ def check_mem(THRESHOLD):
         logging.debug("Memory checked {} GB available".format(av/2**30))   
         return True 
 
-def makeserver():
+def makeserver(PORT):
     connected_clients_sockets = []
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     try:
-        server_socket.bind((HOST, 0))
+        if predifined:
+            server_socket.bind((HOST,PORT))
+        else:    
+            server_socket.bind((HOST, 0))
         server_socket.listen(10)
         PORT=server_socket.getsockname()[1]
         connected_clients_sockets.append(server_socket)
@@ -438,4 +447,4 @@ if client:
     connect()
 else:
     logging.info("Starting server")
-    makeserver()    
+    makeserver(PORT)    
