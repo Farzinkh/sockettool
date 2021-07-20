@@ -76,7 +76,7 @@ At first you need an python image for example python=3.7.9
 
 then follow the instruction :
 
-1. `docker run -it  -p 65432:65432 --name update image bash`
+1. `docker run -it  --network host --name update image bash`
 
 2. `git clone https://github.com/Farzinkh/sockettool`
 
@@ -86,7 +86,8 @@ then follow the instruction :
 
 5. `python Hotspot_terminal.py s -p 65432`
  
- - downloaded file will be accessible in Data folder move it to whereever you want
+ - Downloaded files will be accessible in DATA folder move it to whereever you want
+ - For sending files just place them in SEND folder
 
 6. `exit`
 
@@ -94,12 +95,12 @@ then follow the instruction :
 
  *Enjoy :)*
 
- You can find me on [![Twitter][1.2]][1], or on [![LinkedIn][3.2]][3].
+ You can find me on [![Twitter][1.2]][1] or on [![LinkedIn][3.2]][2]
 
 <!-- Icons -->
 
 [1.2]: http://i.imgur.com/wWzX9uB.png (twitter icon without padding)
-[2.2]: https://raw.githubusercontent.com/MartinHeinz/MartinHeinz/master/linkedin-3-16.png (LinkedIn icon without padding)
+[3.2]: https://raw.githubusercontent.com/MartinHeinz/MartinHeinz/master/linkedin-3-16.png (LinkedIn icon without padding)
 
 <!-- Links to your social media accounts -->
 
