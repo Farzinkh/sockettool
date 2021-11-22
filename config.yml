@@ -1,0 +1,3 @@
+encrypt:
+  encrypt: ON #ON or OFF
+  algorithm: DES #AES or DES

@@ -1,5 +1,5 @@
 import base64
-import os
+import os,sys
 import select
 import socket
 import subprocess
@@ -53,7 +53,10 @@ def main():
     root.bind('<Escape>', lambda e: root.destroy())
     root.protocol("WM_DELETE_WINDOW", root.iconify)
     root.update_idletasks()
-    root.iconbitmap('icon.ico')
+    try:
+        root.iconbitmap('icon.ico')
+    except:
+        pass
     home=ttk.Frame(root)
     home.grid(row=0, column=0, sticky='news')
     home.rowconfigure([0], weight=1)

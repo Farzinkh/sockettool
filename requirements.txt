@@ -1,4 +1,12 @@
-ttkthemes==3.2.0
-tqdm==4.59.0
+blessed==1.19.0
+enlighten==1.10.1
+Pillow==8.4.0
 playsound==1.2.2
+prefixed==0.3.2
 psutil==5.8.0
+pycryptodome==3.11.0
+PyYAML==6.0
+six==1.16.0
+tqdm==4.59.0
+ttkthemes==3.2.0
+wcwidth==0.2.5
