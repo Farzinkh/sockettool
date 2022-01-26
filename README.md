@@ -3,8 +3,17 @@ Share any data in any size and any format through ip and port technology on same
 you can replace any mp3 music by alarm.mp3 just remember ro rename it to alarm.mp3 
 ## Installation
  `git clone https://github.com/Farzinkh/sockettool.git`
+
+ now go to sockettool directory and create virtual environment.
+
+ `python -m venv <name>`
+
+source your virtual environment and run
  
  `pip install -r requirements.txt`
+## Config
+this application is secured by DES in default config but you can simply change it to AES or turn off encrypting,whatever you decide to do remember to do it
+in same way at the other side and also if you choose to encrypt you have to share your encrypt file(.bin) manually and use `-key <address_of_key>` in client side.
 ## Usage
 you can use graphical version or non graphical version as you wish 
 for useing graphical version just run 
@@ -26,13 +35,13 @@ in receiver part run :
 
 `python sockettool\Hotspot_terminal.py s`
 
-read the server ip and port and keep them in mind
+read the server ip and port and keep them in mind or in client side in same network just run `python Hotspot_terminal.py scan`
 
-and in sender part place a file or files and run this:
+and in sender part place a file or files in SEND folder and run this:
 
 `python sockettool\Hotspot_terminal.py c -ip <reciver ip> -p <server port>`
 
-and wait for finish you can always cancel it by `ctrl+C
+and wait for finish you can always cancel it by `ctrl+C`
 
 ### Android Usage
 

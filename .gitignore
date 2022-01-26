@@ -1,6 +1,9 @@
 exe for windows/
 inv/
+test/
+report/
 *.bin
 *.log
+*.pdf
 test.py
 __pycache__

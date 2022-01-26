@@ -9,8 +9,11 @@ import select
 import socket
 import subprocess
 import time
+import scanning as scanning_service
 from math import ceil
 from pathlib import Path
+import config
+from typing import Optional
 
 import enlighten
 import psutil
@@ -18,17 +21,31 @@ import yaml
 from Crypto.Cipher import AES, DES
 from Crypto.Random import get_random_bytes
 
+
 from benchmarkapi import get_cpu_usage_pct, get_ram_total, get_ram_usage
 
 parser=argparse.ArgumentParser(description='socket tool for very easy transfering data',epilog='Attention : if it is going to be a client you most to enter server ip and port too')
-parser.add_argument("operation",metavar='operation',help="Choice to be client or server put 'c' for client and 's' for server" )
+parser.add_argument("operation",metavar='operation',help="Choice to be client or server put 'c' for client and 's' for server 'scan' for scan IPs" )
 parser.add_argument('-ip',"--serverip",metavar='serverip',help="Enter ip of server")
 parser.add_argument('-p',"--port",metavar='port',help="Enter port number of server")
 parser.add_argument('-key',"--key",metavar='key',help="Enter key file only if it is client and encrypt is ON")
 args=parser.parse_args()
-client=False
+client,scan=False,False
 with open("config.yml", 'r') as stream:
     data_loaded = yaml.safe_load(stream)  #dump in reverse 
+
+def current(network_id: str, use_plugin: Optional[str], verbose: bool):
+    """ Look at who is currently on the network """
+    print("Scanning...")
+    scan_id = scanning_service.scan_network_single(network_id, use_plugin, verbose)
+    discoveries = scanning_service.get_discoveries_from_scan(scan_id)
+
+    print(f'+-{"-"*17}---{"-"*15}---{"-"*30}-+')
+    print(f'| {"MAC Address":^17} | {"IP Address":^15} | {"Hostname":^30} |')
+    for discovery in discoveries:
+        print(f'| {discovery.device.mac_address:<17} | {discovery.ip_address:^15} | {discovery.hostname:^30} |')
+    print(f'+-{"-"*17}---{"-"*15}---{"-"*30}-+')
+        
 if args.operation=="c" or args.operation=="cd":
     try:
         client=True
@@ -59,8 +76,13 @@ elif  args.operation=="s" or args.operation=="sd":
         import warnings
         warnings.filterwarnings('ignore')
         logging.basicConfig(format='%(asctime)s : %(levelname)s -> %(message)s', level=logging.INFO)  
+
+elif args.operation=="scan":     
+    scan=True   
+    current(config.DEFAULT_NETWORK_ID,config.DEFAULT_PLUGIN,config.VERBOSE)
+    
 else:
-    raise("OPERATION NOT DITECTED CHOSE ONE OF THIS (c,s,cd,sd)")
+    raise("OPERATION NOT DITECTED CHOSE ONE OF THIS (c,s,cd,sd,scan,test)")
     
 LOGGER = logging.getLogger('sockettool')
 
@@ -120,6 +142,7 @@ def wlan_ip():
             s.close()
         return IP            
 
+
 HOST=wlan_ip() 
 global firsttry,trynumber,maxramusage
 firsttry,trynumber,maxramusage=True,0,0
@@ -143,8 +166,7 @@ def check_mem(THRESHOLD):
         
 def encipher(data):
     ct_bytes = cipher.encrypt(data)
-    iv = base64.b64encode(cipher.iv)
-    return iv,ct_bytes
+    return cipher.iv,ct_bytes
         
 def decipher(data,cipher):
     return cipher.decrypt(data)
@@ -228,6 +250,8 @@ def makeserver(PORT):
                         elif txt.startswith('BYE'):
                             LOGGER.info('RECEIVED SUCCESSFULLY')
                             LOGGER.debug('recived : '+str(receiveddata)+' real size : '+str(size))
+                            if data_loaded['encrypt']['encrypt']:
+                                LOGGER.debug('Total decrypt time is {}'.format(decrypttime))
                             #return 
                             if Hugeflagfinish:
                                 pass
@@ -270,17 +294,31 @@ def makeserver(PORT):
                             pbar=enlighten.Counter(color = 'red',desc=name, total = ceil(size), unit = 'B')
                             if Hugeflag:
                                 pass
-                            else:  
-                                original = base64.b64decode(data)
-                                receiveddata=len(data)    
+                            else:   
                                 if data_loaded['encrypt']['encrypt'] and data_loaded['encrypt']['algorithm']=='AES':
+                                    original = base64.b64decode(data)
+                                    receiveddata=len(data)   
+                                    LOGGER.debug("AES Original received {} receiveddata {}".format(len(original),receiveddata))
                                     cipher=AES.new(key, AES.MODE_CFB, iv=original[0:16])
                                     LOGGER.debug("iv received {}".format(original[0:16]))
+                                    tic = time.clock()
                                     original=decipher(original[16:],cipher)
-                                if data_loaded['encrypt']['encrypt'] and data_loaded['encrypt']['algorithm']=='DES':
+                                    toc = time.clock()
+                                    decrypttime=toc - tic
+                                elif data_loaded['encrypt']['encrypt'] and data_loaded['encrypt']['algorithm']=='DES':
+                                    original = base64.b64decode(data)
+                                    receiveddata=len(data)   
+                                    LOGGER.debug("DES Original received {} receiveddata {}".format(len(original),receiveddata))
                                     cipher=DES.new(key, DES.MODE_OFB, iv=original[0:8])
                                     LOGGER.debug("iv received {}".format(original[0:8]))
+                                    tic = time.clock()
                                     original=decipher(original[16:],cipher)    
+                                    toc = time.clock()
+                                    decrypttime=toc - tic
+                                else :
+                                    original = base64.b64decode(data)
+                                    receiveddata=len(data)
+                                LOGGER.debug("Original received {}".format(len(original)))    
                             if Hugeflag:
                                 remainpart=parts
                                 for i in range(parts):
@@ -304,12 +342,18 @@ def makeserver(PORT):
                                         get_status()
                                         try:
                                             if data_loaded['encrypt']['encrypt']:
+                                                tic = time.clock()
                                                 original+=decipher(base64.b64decode(data),cipher)
+                                                toc = time.clock()
+                                                decrypttime+=toc - tic
                                             else:    
                                                 original += base64.b64decode(data)
                                         except:
                                             if data_loaded['encrypt']['encrypt']:
+                                                tic = time.clock()
                                                 original=decipher(base64.b64decode(data),cipher)
+                                                toc = time.clock()
+                                                decrypttime+=toc - tic
                                             else:  
                                                 original = base64.b64decode(data) 
                                         pbar.update(ceil(len(data)))    
@@ -323,7 +367,9 @@ def makeserver(PORT):
                                     t=time.strftime("%H:%M:%S", time.gmtime(remainpart*(time.time() - t1)))
                                     status.update(demo='Downloading part number {}/{} estimated time: {}'.format(i+1,parts,t))                                
                                     if txt=="Next":
-                                        pass        
+                                        pass     
+                                if data_loaded['encrypt']['encrypt']:
+                                    LOGGER.debug('Total decrypt time is {}'.format(decrypttime))       
                                 LOGGER.info('saveing...')
                                 myfile.write(original)
                                 myfile.close()    
@@ -337,9 +383,13 @@ def makeserver(PORT):
                                     data = sock.recv(buffer_size)
                                     receiveddata+=len(data) 
                                     if data_loaded['encrypt']['encrypt']:
+                                        tic = time.clock()
                                         original+=decipher(base64.b64decode(data),cipher)
+                                        toc = time.clock()
+                                        decrypttime+=toc - tic
                                     else:    
                                         original +=  base64.b64decode(data)
+                                    LOGGER.debug("Original received in while {} receiveddata {}".format(len(original),receiveddata))        
                                     get_status()   
                                     pbar.update(ceil(len(data)))
                                     status.update(demo='Downloading...')                               
@@ -469,7 +519,10 @@ def send():
                     t1=time.time()
                     piece=read1k()
                     if data_loaded['encrypt']['encrypt']:
+                        tic = time.clock()
                         iv,piece=encipher(piece)
+                        toc = time.clock()
+                        encrypttime+=toc - tic
                         s=s+len(piece)
                         as_text_base64 = base64.b64encode(piece)
                         LOGGER.debug("client sent enciphered PART {} size {} with iv".format(count,len(as_text_base64)))
@@ -505,7 +558,9 @@ def send():
                     if s==fsize:
                         break     #all parts sent
                 datas.remove(datas[0]) 
-                LOGGER.info('HUGE DATA SUCCESSFULLY SENT TO SERVER')   
+                LOGGER.info('HUGE DATA SUCCESSFULLY SENT TO SERVER')  
+                if data_loaded['encrypt']['encrypt']:
+                    LOGGER.debug('Total encrypt time is {} s'.format(encrypttime)) 
                 answer = sock.recv(4096).decode('utf-8')
                 LOGGER.debug("client recived {}".format(answer))
                 if answer=="done" and len(datas)>0:
@@ -514,9 +569,14 @@ def send():
             else:
                 buffer = myfile.read()
                 if data_loaded['encrypt']['encrypt']:
+                    tic = time.clock()
                     iv,buffer=encipher(buffer)
-                    as_text_base64 = base64.b64encode(buffer)
-                    as_text_base64=iv+as_text_base64 
+                    toc = time.clock()
+                    encrypttime=toc - tic
+                    LOGGER.debug('Normal iv {} iv encode {}'.format(len(iv),len(base64.b64encode(iv))))
+                    #as_text_base64 = base64.b64encode(buffer)
+                    ##as_text_base64=base64.b64encode(iv)+as_text_base64 
+                    as_text_base64=base64.b64encode(iv+buffer)
                 else:    
                     as_text_base64 = base64.b64encode(buffer)
                 size = len(as_text_base64)
@@ -539,6 +599,8 @@ def send():
                     if answer == 'GOT IT' :
                         sock.sendall(b"BYE BYE ")
                         LOGGER.info('DATA SUCCESSFULLY SENT TO SERVER')
+                        if data_loaded['encrypt']['encrypt']:
+                            LOGGER.debug('Total encrypt time is {} s'.format(encrypttime))
                         datas.remove(datas[0])
                         answer = sock.recv(4096).decode('utf-8')
                         if answer=="done" and len(datas)>0:
@@ -584,7 +646,9 @@ def connect():
         time.sleep(2)
 
 if __name__ == '__main__':
-    if client:      
+    if scan :
+        print('Done')
+    elif client:      
         if data_loaded['encrypt']['encrypt']:    
             if data_loaded['encrypt']['algorithm']=='AES':
                 if not os.path.exists(key): 
